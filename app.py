@@ -1,197 +1,102 @@
 import streamlit as st
-import speech_recognition as sr
-from difflib import SequenceMatcher
-from gtts import gTTS
 import random
+from gtts import gTTS
 import os
 
-st.set_page_config(page_title="AI Pronunciation Trainer", layout="centered")
+st.set_page_config(page_title="AI Pronunciation Trainer")
 
-recognizer = sr.Recognizer()
+st.title("AI Pronunciation Trainer")
 
-# ---------- MODERN UI ----------
-st.markdown("""
-<style>
+# -------- Name --------
+name = st.text_input("Enter Your Name")
 
-body{
-background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-}
+if name:
+    st.success(f"Welcome {name}")
 
-.hero{
-padding:40px;
-border-radius:20px;
-background: linear-gradient(135deg,#667eea,#764ba2);
-color:white;
-text-align:center;
-margin-bottom:30px;
-box-shadow:0px 10px 40px rgba(0,0,0,0.3);
-}
+# -------- Class --------
+student_class = st.selectbox(
+    "Select Your Class",
+    ["1-3","4-5","6-8","9-10"]
+)
 
-.hero h1{
-font-size:40px;
-font-weight:700;
-}
+# -------- Language --------
+language = st.selectbox(
+    "Select Language",
+    ["English","Hindi","Marathi","Sanskrit"]
+)
 
-.card{
-background:white;
-padding:25px;
-border-radius:18px;
-box-shadow:0px 10px 25px rgba(0,0,0,0.1);
-margin-top:20px;
-}
+# -------- AI Word Pools --------
 
-.wordbox{
-font-size:38px;
-font-weight:bold;
-text-align:center;
-padding:15px;
-border-radius:12px;
-background:#eef2ff;
-margin-top:20px;
-}
+AI_WORDS = {
 
-</style>
-""", unsafe_allow_html=True)
+"English":[
+"cat","dog","tree","sun","book","apple","teacher","window",
+"garden","banana","science","language","computer","beautiful",
+"technology","environment","knowledge","education","communication"
+],
 
-# ---------- WORD DATABASE ----------
+"Hindi":[
+"घर","पानी","सूरज","किताब","विद्यालय","शिक्षक","परिवार",
+"कक्षा","विद्यार्थी","संविधान","पर्यावरण","स्वतंत्रता"
+],
 
-LANGUAGE_WORDS = {
+"Marathi":[
+"घर","पाणी","आई","सूर्य","शाळा","शिक्षक",
+"विद्यार्थी","अभ्यास","तंत्रज्ञान","पर्यावरण"
+],
 
-"English":{
-"Easy":["cat","dog","tree","sun","book"],
-"Medium":["teacher","window","garden","doctor","banana"],
-"Hard":["beautiful","technology","environment","knowledge"]
-},
-
-"Hindi":{
-"Easy":["घर","सूरज","पानी","माता","किताब"],
-"Medium":["विद्यालय","शिक्षक","परिवार","कक्षा"],
-"Hard":["संविधान","पर्यावरण","स्वतंत्रता"]
-},
-
-"Marathi":{
-"Easy":["घर","पाणी","आई","सूर्य"],
-"Medium":["शाळा","विद्यार्थी","शिक्षक"],
-"Hard":["संविधान","पर्यावरण","तंत्रज्ञान"]
-},
-
-"Sanskrit":{
-"Easy":["गृह","जल","सूर्य","माता"],
-"Medium":["विद्यालयः","विद्यार्थी"],
-"Hard":["पर्यावरणम्","स्वतन्त्रता"]
-}
+"Sanskrit":[
+"गृह","जल","सूर्य","माता","विद्यालयः","विद्यार्थी",
+"पर्यावरणम्","स्वतन्त्रता"
+]
 
 }
 
-# ---------- SESSION STATE ----------
+# -------- Complexity Control (AI Logic) --------
 
-if "page" not in st.session_state:
-    st.session_state.page = "login"
+def generate_word(lang, student_class):
 
-if "current_word" not in st.session_state:
-    st.session_state.current_word = ""
+    words = AI_WORDS[lang]
 
-# ---------- LOGIN PAGE ----------
+    if student_class == "1-3":
+        filtered = [w for w in words if len(w) <= 4]
 
-if st.session_state.page == "login":
+    elif student_class == "4-5":
+        filtered = [w for w in words if 4 < len(w) <= 6]
 
-    st.markdown("""
-    <div class='hero'>
-    <h1>AI Pronunciation Trainer</h1>
-    <p>Improve Your Speaking Skills</p>
-    </div>
-    """, unsafe_allow_html=True)
+    elif student_class == "6-8":
+        filtered = [w for w in words if 6 < len(w) <= 9]
 
-    name = st.text_input("Enter Your Name")
+    else:
+        filtered = [w for w in words if len(w) > 8]
 
-    if st.button("Start Learning 🚀"):
+    return random.choice(filtered)
 
-        if name != "":
-            st.session_state.name = name
-            st.session_state.page = "main"
-            st.rerun()
+# -------- Generate Word --------
 
-# ---------- MAIN PAGE ----------
+if st.button("Generate AI Word"):
 
-elif st.session_state.page == "main":
+    word = generate_word(language, student_class)
 
-    st.markdown(f"### Welcome {st.session_state.name} 👋")
+    st.session_state.word = word
 
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+# -------- Show Word --------
 
-    language = st.selectbox(
-        "Select Language",
-        ["English","Hindi","Marathi","Sanskrit"]
-    )
+if "word" in st.session_state:
 
-    level = st.radio(
-        "Difficulty Level",
-        ["Easy","Medium","Hard"],
-        horizontal=True
-    )
+    word = st.session_state.word
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.subheader("Pronounce This Word")
 
-    words = LANGUAGE_WORDS[language][level]
+    st.markdown(f"## {word}")
 
-    if st.button("Generate Word 🎯"):
-        st.session_state.current_word = random.choice(words)
+    # correct pronunciation
+    tts = gTTS(word)
 
-    if st.session_state.current_word != "":
+    tts.save("word.mp3")
 
-        word = st.session_state.current_word
+    audio_file = open("word.mp3","rb")
 
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.audio(audio_file.read())
 
-        st.write("### Pronounce This Word")
-
-        st.markdown(f"<div class='wordbox'>{word}</div>", unsafe_allow_html=True)
-
-        if st.button("🎤 Start Recording"):
-
-            try:
-
-                with sr.Microphone() as source:
-
-                    st.info("Listening... Speak now")
-
-                    recognizer.adjust_for_ambient_noise(source)
-
-                    audio = recognizer.listen(source)
-
-                spoken = recognizer.recognize_google(audio)
-
-                st.write("You said:", spoken)
-
-                accuracy = SequenceMatcher(
-                    None,
-                    word.lower(),
-                    spoken.lower()
-                ).ratio() * 100
-
-                st.progress(int(accuracy))
-
-                st.write(f"Accuracy: {accuracy:.2f}%")
-
-                if accuracy >= 80:
-
-                    st.success("Excellent Pronunciation 🎉")
-
-                else:
-
-                    st.warning("Try Again! Listen to correct pronunciation.")
-
-                    tts = gTTS(word)
-
-                    tts.save("correct.mp3")
-
-                    audio_file = open("correct.mp3", "rb")
-
-                    st.audio(audio_file.read())
-
-                    os.remove("correct.mp3")
-
-            except:
-                st.error("Speech not understood. Please try again.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
+    os.remove("word.mp3")
