@@ -1,171 +1,194 @@
 import streamlit as st
-import random
+from streamlit_mic_recorder import mic_recorder
+import speech_recognition as sr
 from difflib import SequenceMatcher
 from gtts import gTTS
-import speech_recognition as sr
-import os
+import random
 
-st.set_page_config(page_title="AI Teacher Tejal")
+st.set_page_config(page_title="AI Pronunciation Trainer", layout="centered")
 
 recognizer = sr.Recognizer()
 
-# ---------- SESSION ----------
-if "page" not in st.session_state:
-    st.session_state.page = "welcome"
+# ---------------- UI STYLE ----------------
 
-# ---------- WORD DATABASE ----------
+st.markdown("""
+<style>
 
-WORDS = {
+.hero{
+padding:40px;
+border-radius:20px;
+background: linear-gradient(135deg,#667eea,#764ba2);
+color:white;
+text-align:center;
+margin-bottom:30px;
+}
+
+.card{
+background:white;
+padding:25px;
+border-radius:15px;
+margin-top:20px;
+}
+
+.wordbox{
+font-size:36px;
+font-weight:bold;
+text-align:center;
+padding:15px;
+background:#eef2ff;
+border-radius:10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- WORD DATABASE ----------------
+
+LANGUAGE_WORDS = {
 
 "English":{
-"Easy":["cat","dog","sun","book"],
-"Medium":["teacher","window","garden"],
-"Hard":["beautiful","technology","environment"]
+"Easy":["cat","dog","sun","tree","book"],
+"Medium":["teacher","window","garden","doctor"],
+"Hard":["technology","environment","knowledge"]
 },
 
 "Hindi":{
-"Easy":["घर","पानी","सूरज"],
-"Medium":["विद्यालय","शिक्षक"],
+"Easy":["घर","सूरज","पानी"],
+"Medium":["विद्यालय","परिवार"],
 "Hard":["संविधान","स्वतंत्रता"]
 },
 
 "Marathi":{
-"Easy":["घर","आई","पाणी"],
-"Medium":["शाळा","शिक्षक"],
-"Hard":["तंत्रज्ञान","पर्यावरण"]
+"Easy":["घर","पाणी","आई"],
+"Medium":["शाळा","विद्यार्थी"],
+"Hard":["संविधान","पर्यावरण"]
+},
+
+"Sanskrit":{
+"Easy":["गृह","जल"],
+"Medium":["विद्यालयः"],
+"Hard":["पर्यावरणम्"]
 }
 
 }
 
-# ---------- PAGE 1 WELCOME ----------
+# ---------------- SESSION ----------------
 
-if st.session_state.page == "welcome":
+if "page" not in st.session_state:
+    st.session_state.page="login"
 
-    st.title("Hey I am Tejal 👩‍🏫 Your AI Teacher")
+# ---------------- LOGIN PAGE ----------------
 
-    st.write("You can practice pronunciation with me 24 hours.")
+if st.session_state.page=="login":
 
-    name = st.text_input("Please enter your name")
+    st.markdown("""
+    <div class='hero'>
+    <h1>AI Pronunciation Trainer</h1>
+    <p>Improve your communication skills</p>
+    </div>
+    """,unsafe_allow_html=True)
 
-    if st.button("Next"):
+    name=st.text_input("Enter Your Name")
 
-        st.session_state.name = name
-        st.session_state.page = "age"
-        st.rerun()
+    if st.button("Start Learning"):
 
+        if name!="":
+            st.session_state.name=name
+            st.session_state.page="main"
+            st.rerun()
 
-# ---------- PAGE 2 AGE ----------
+# ---------------- MAIN PAGE ----------------
 
-elif st.session_state.page == "age":
+elif st.session_state.page=="main":
 
-    st.title(f"Hello {st.session_state.name}")
+    st.markdown(f"### Welcome {st.session_state.name}")
 
-    age = st.number_input("Enter your age", 3, 20)
+    st.markdown("<div class='card'>",unsafe_allow_html=True)
 
-    if st.button("Next"):
-
-        st.session_state.age = age
-        st.session_state.page = "class"
-        st.rerun()
-
-
-# ---------- PAGE 3 CLASS ----------
-
-elif st.session_state.page == "class":
-
-    student_class = st.selectbox(
-        "Select Your Class",
+    student_class=st.selectbox(
+        "Select Class",
         ["1-3","4-5","6-8","9-10"]
     )
 
-    if st.button("Next"):
+    language=st.text_input(
+        "Tell Your Language (English / Hindi / Marathi / Sanskrit)"
+    ).strip().title()
 
-        st.session_state.class_level = student_class
-        st.session_state.page = "language"
-        st.rerun()
-
-
-# ---------- PAGE 4 LANGUAGE ----------
-
-elif st.session_state.page == "language":
-
-    language = st.selectbox(
-        "Please enter your language",
-        ["English","Hindi","Marathi"]
+    level=st.radio(
+        "Difficulty Level",
+        ["Easy","Medium","Hard"],
+        horizontal=True
     )
 
-    difficulty = st.radio(
-        "Select Difficulty",
-        ["Easy","Medium","Hard"]
-    )
+    st.markdown("</div>",unsafe_allow_html=True)
 
-    if st.button("Start Practice"):
+    if language in LANGUAGE_WORDS:
 
-        st.session_state.language = language
-        st.session_state.level = difficulty
-        st.session_state.page = "practice"
-        st.rerun()
+        words=LANGUAGE_WORDS[language][level]
 
+        word=random.choice(words)
 
-# ---------- PAGE 5 PRACTICE ----------
+        st.markdown("<div class='card'>",unsafe_allow_html=True)
 
-elif st.session_state.page == "practice":
+        st.write("### Pronounce This Word")
 
-    st.title("Pronunciation Practice")
+        st.markdown(f"<div class='wordbox'>{word}</div>",unsafe_allow_html=True)
 
-    language = st.session_state.language
-    level = st.session_state.level
+        audio=mic_recorder(
+            start_prompt="🎤 Start Recording",
+            stop_prompt="Stop Recording",
+            just_once=True
+        )
 
-    word = random.choice(WORDS[language][level])
+        if audio:
 
-    st.subheader("Pronounce this word")
+            st.audio(audio["bytes"])
 
-    st.markdown(f"## {word}")
+            try:
 
-    if st.button("Start Recording"):
+                with open("temp.webm","wb") as f:
+                    f.write(audio["bytes"])
 
-        try:
+                with sr.AudioFile("temp.webm") as source:
 
-            with sr.Microphone() as source:
+                    audio_data=recognizer.record(source)
 
-                st.info("Listening...")
+                    spoken=recognizer.recognize_google(audio_data)
 
-                recognizer.adjust_for_ambient_noise(source)
+                st.write("You said:",spoken)
 
-                audio = recognizer.listen(source)
+                accuracy=SequenceMatcher(
+                    None,
+                    word.lower(),
+                    spoken.lower()
+                ).ratio()*100
 
-            spoken = recognizer.recognize_google(audio)
+                st.progress(int(accuracy))
 
-            st.write("You said:", spoken)
+                st.write(f"Accuracy: {accuracy:.2f}%")
 
-            accuracy = SequenceMatcher(
-                None,
-                word.lower(),
-                spoken.lower()
-            ).ratio() * 100
+                if accuracy>=70:
 
-            st.progress(int(accuracy))
+                    st.success("Good pronunciation!")
 
-            st.write(f"Accuracy: {accuracy:.2f}%")
+                else:
 
-            if accuracy >= 70:
+                    st.warning("Accuracy below 70%. Listen correct pronunciation")
 
-                st.success("Great job! 🎉")
+                    tts=gTTS(word)
 
-            else:
+                    tts.save("correct.mp3")
 
-                st.warning("Accuracy below 70%. Listen correct pronunciation")
+                    audio_file=open("correct.mp3","rb")
 
-                tts = gTTS(word)
+                    st.audio(audio_file.read())
 
-                tts.save("correct.mp3")
+            except:
 
-                audio_file = open("correct.mp3","rb")
+                st.error("Speech not recognized")
 
-                st.audio(audio_file.read())
+        st.markdown("</div>",unsafe_allow_html=True)
 
-                os.remove("correct.mp3")
+    elif language!="":
 
-        except:
-
-            st.error("Could not understand speech. Try again.")
+        st.warning("Type valid language: English, Hindi, Marathi, Sanskrit")
