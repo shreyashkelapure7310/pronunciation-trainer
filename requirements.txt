@@ -1,3 +1,6 @@
 streamlit
+streamlit-mic-recorder
 SpeechRecognition
-gtts
+gTTS
+pydub
+ffmpeg-python
